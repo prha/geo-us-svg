@@ -1,0 +1,18 @@
+{
+  "name": "geo-us-svg",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "author": "",
+  "license": "ISC",
+  "bin": {
+    "geo-us-svg": "bin/geo-us-svg"
+  },
+  "dependencies": {
+    "d3-geo-projection": "^2.2.0",
+    "ndjson-cli": "^0.3.1",
+    "shapefile": "^0.6.5",
+    "topojson": "^3.0.0"
+  }
+}

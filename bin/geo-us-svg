@@ -1,0 +1,14 @@
+#!/bin/bash
+BIN=$(npm bin)
+$BIN/ndjson-split 'd.features' < data/counties.json | \
+$BIN/ndjson-filter 'd.properties.STATEFP === "06"' | \
+$BIN/ndjson-reduce 'p.features.push(d), p' '{type: "FeatureCollection", features: []}' | \
+$BIN/geoproject 'd3.geoConicEqualArea().parallels([34, 40.5]).rotate([120, 0]).fitSize([960, 960], d)' | \
+$BIN/ndjson-split 'd.features' | \
+$BIN/geo2topo -n counties=- | \
+$BIN/toposimplify -p 1 -f | \
+$BIN/topoquantize 1e5 | \
+$BIN/topo2geo counties=- | \
+$BIN/ndjson-map 'd.features.forEach(f => { const fill = f.properties["COUNTYFP"] === "075" ? "red" : "black"; f.properties.fill = fill; }), d' | \
+$BIN/ndjson-split 'd.features' | \
+$BIN/geo2svg -n —stroke none -p 1 -w 960 -h 960
