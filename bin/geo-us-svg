@@ -1,7 +1,66 @@
 #!/bin/bash
 BIN=$(npm bin)
-$BIN/ndjson-split 'd.features' < data/counties.json | \
-$BIN/ndjson-filter 'd.properties.STATEFP === "06"' | \
+usage="Usage: $(basename "$0") [--help] [--color <hexcolor>] [--background <hexcolor>] [--stroke <hexcolor>] [--output <outfile>] json_file county_fips
+where:
+  --help     show this help text
+  --color    set the highlight color for the selected county [default: #aa3939]
+  --bg-color set the background color for the map [default: #ececec]
+  --output   set the output path for the svg [default: <stdout>]
+"
+
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    --help)
+    echo "$usage"
+    exit
+    ;;
+    o|--output)
+    OUTFILE="$2"
+    shift # past argument
+    ;;
+    -c|--color)
+    COLOR="${2}"
+    shift # past argument
+    ;;
+    -b|--background)
+    BACKGROUND="$2"
+    shift # past argument
+    ;;
+    -s|--stroke)
+    STROKE="$2"
+    shift # past argument
+    ;;
+    *)
+    FILE="$1"
+    shift
+    FIPS="$1"
+    ;;
+esac
+shift # past argument or value
+done
+
+if [[ ! ${FILE} ]]; then
+    echo "Error: need a valid input geo json file"
+    echo "$usage"
+    exit
+fi
+
+if [[ ! ${FIPS} ]] || [[ ${#FIPS} -ne 5 ]]; then
+    echo "Error: need valid county fips"
+    echo "$usage"
+    exit
+fi
+
+COUNTY=${FIPS:2}
+STATE=${FIPS:0:2}
+STATE_FILTER="d.properties.STATEFP === \"${STATE}\""
+FILL_JS="d.features.forEach(f => { const fill = f.properties[\"COUNTYFP\"] === \"${COUNTY}\" ? \"${COLOR:-"#aa3939"}\" : \"${BACKGROUND:-"#ececec"}\"; f.properties.fill = fill; }), d"
+
+$BIN/ndjson-split 'd.features' < ${FILE} | \
+$BIN/ndjson-filter "${STATE_FILTER}" | \
 $BIN/ndjson-reduce 'p.features.push(d), p' '{type: "FeatureCollection", features: []}' | \
 $BIN/geoproject 'd3.geoConicEqualArea().parallels([34, 40.5]).rotate([120, 0]).fitSize([960, 960], d)' | \
 $BIN/ndjson-split 'd.features' | \
@@ -9,6 +68,6 @@ $BIN/geo2topo -n counties=- | \
 $BIN/toposimplify -p 1 -f | \
 $BIN/topoquantize 1e5 | \
 $BIN/topo2geo counties=- | \
-$BIN/ndjson-map 'd.features.forEach(f => { const fill = f.properties["COUNTYFP"] === "075" ? "red" : "black"; f.properties.fill = fill; }), d' | \
+$BIN/ndjson-map "${FILL_JS}" | \
 $BIN/ndjson-split 'd.features' | \
-$BIN/geo2svg -n —stroke none -p 1 -w 960 -h 960
+$BIN/geo2svg -n --stroke "${STROKE:-"#aaaaaa"}" -p 1 -w 960 -h 960 > ${OUTFILE:-"/dev/stdout"}
